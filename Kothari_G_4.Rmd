@@ -1,0 +1,258 @@
+---
+title: "DA5020 - Homework 4 Solution"
+author: "Gandhar Kothari"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \usepackage{framed,color}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+## Preparation
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(stringr)
+
+fmarket <- read_csv("farmers_market.csv")
+kyfp <- read_xls("kyfprojects.xls")
+```
+
+## Qustion 1 (20 points)
+
+Cleanup the Facebook and Twitter column to let them contain only the facebook username or
+twitter handle name. I.e., replace "https://www.facebook.com/pages/Cameron-Park-Farmers-Market/
+97634216535?ref=hl" with "Cameron-Park-Farmers-Market", "https://twitter.com/FarmMarket125th"
+with "FarmMarket125th", and "@21acres" with "21acres"
+
+```{r}  
+q1 <- as_vector(fmarket$Facebook) # Converted my Facebook column to a vector so that  
+#matching with the patterns i generated will easy .
+
+fbheadpatterns <- c( 'https:[/][/]www.facebook.com[/]pages[/]',
+                 'https:[/][/]www.facebook.com[/]',
+                 'facebook.com[/]',
+                 'www.facebook.com[/]',
+                 '@',
+                 'www.facebook.com[/]',
+                 'www.facebook.com[/]pages[/]',
+                 'faccebook[/]',
+                 'https:[/][/]www.facebook.com[/]',
+                 'http:[/][/]www.usdalocalfooddirectories.com[/]','www.',
+                 'http:[/][/]')  #Generated a vector containing all the patterns found in  
+#the dataset using regular expressions. each regular expression  
+#corresponds to a particular particular pattern in which  
+#the facebook user name is entered in the dataset.
+
+regexfbheadpatterns <- (str_c(fbheadpatterns, collapse = "|")) #Regular expression generation.  
+#That is, collapsed all the patterns to form a regular expression  
+#seperated by an tab  [(|) representing an or]
+
+fbheadclean <- str_replace_all(q1, regexfbheadpatterns, " ") # Cleaned the head part (first part) of  
+#the facebook user name using str_replace function by  
+#replacing all the patterns in the regular expression  
+#generated with a (" ")  
+
+fbtailpatterns <- c( '[/].*', '[?].*', "-[0-9]+") # Generated a vector representing common patterns of tails (after the facebook username) in the dataset.  
+
+regexfbtailpatters <- (str_c(fbtailpatterns, collapse = "|"))  
+# generated a regular expression representing a the common patterns in the tail.
+
+fbclean <- (str_replace_all(fbheadclean, regexfbtailpatters, " ")) %>%
+  as_tibble()  
+# replaced the tail part with (" ") and then converted it into a tibble  
+#to assign the cleaned values to the fmarket data frame.  
+#that is converted the vector of cleaned Facebook column to a  
+#Cleaned Dataframe containing all  
+
+fmarket$Facebook <- fbclean    
+# cleaned data frame containing Face Book column is replacing  
+#the uncleaned face book colmn.
+
+# Twitter clean up.
+
+tweet <- as_vector(fmarket$Twitter) # converted the twitter column to vector. 
+
+tweetpatterns <- c(  'farmers.twit.v[[z]]' ,
+                     'https:[/][/]twitter.com[/]' ,
+                     '@' ,
+                     'www.twitter.com')  
+#generated a vector containing all the common patterns  
+#representing a twitter handle name.
+
+regexptweetpattern <- (str_c(tweetpatterns, collapse =  "|"))  
+#collapsed the vector to generate a regular expression  
+#containing all the pattern to match the regular expression  
+#with the values in the vector containing twitter handle name.
+
+tweethandle <- str_replace_all(tweet , regexptweetpattern, " ") %>%
+  as_tibble()  
+#Replaced all the patterns in the 'tweet' vector with (" ") from  
+#the matching patterns in the regular expression. 
+
+fmarket$Twitter <- tweethandle 
+
+fmarket <- as.data.frame(fmarket)
+
+head(fmarket)
+
+```
+  
+
+
+## Question 2 (20 points)
+
+Clean up the city and street column. Remove state and county names from the city
+column and consolidate address spellings to be more consistent (e.g. "St.", "ST.", "Street" all become
+"St"; "and" changes to "&", etc. . . ).
+
+```{r}  
+
+q2 <- as_vector(fmarket$street)  
+# Created a vector containing street names   
+# to match them with the patterns of street names.
+
+
+patterns <- c("St.$","street$","Street$" , "Streets$" , "ST.$", "Sts.$",
+              "St.$", "Street", "St.", "\\b ST$ \\b" )  
+# vector containing observed patterns of street names  
+# in the dataset.
+
+mpatterns <- str_c(patterns , collapse = "|") 
+# Collapsed the patterns using "collapse" function to  
+# Create a regular expression containing all patterns.
+
+
+v4 <- str_replace_all(q2 , mpatterns , "St")
+# Now matched all the patterns with the Street column in   
+# the data frame to replace all the observed patterns with  "St" and  
+# get them in a consistent format and stored the resulting new vector   
+# in variable v4 for further usage
+
+fmarket$street <- v4  
+# Assigned the new vector v4 to the street column  
+# to assign the new cleaned values 
+
+
+v5 <-  str_replace_all(v4 , "\\b and\\b", "&")  
+# Now based on the above cleaned column , now cleaned the  
+# Street column once again to consistantly replace all 'and' with "&"
+
+fmarket$street <- v5  
+# Now assigned the second cleaned value of Street column to  
+# fmarket data frame.
+
+
+v6 <- as_vector(fmarket$city)  
+# Now after cleaning the street column,  now converted the city  
+# to a vector to clean it to get in a consistant format.
+
+v7 <- str_replace_all(v6 , ",[ ][a-zA-Z]+", " ")  
+# Now replaced everything after the city name with an " "  
+# this removes unnecessary names after the city name.
+
+fmarket$city <- v7  
+# The resulting cleaned vector is assigned to city column  
+# to replace the old city names with the new resulting city names. 
+
+fmarket <- as.data.frame(fmarket)
+
+head(fmarket,10)
+
+
+```
+
+\newpage
+
+## Question 3 (20 points)
+
+Create a new data frame (tibble) that explains the online presence of each state's farmers
+market. I.e., how many percentages of them have a facebook account? A twitter account? Or either of
+the accounts?
+
+```{r}  
+State_online_presence <- fmarket %>%
+  group_by(State) %>%
+  summarise(
+    web.prop = (sum(!is.na(Website))/n())*100,
+    fb.Prop = (sum(!is.na(Facebook))/n())*100,
+    Twit.Prop = (sum(!is.na(Twitter))/n())*100,
+    Ytube.Prop = (sum(!is.na(Youtube))/n()*100),
+    Othmedia.prop = (sum(!is.na(OtherMedia))/n())*100
+  ) %>%
+  as_tibble()
+
+head(State_online_presence)
+
+```
+
+
+## Qustion 4 (20 points)
+
+Some of the farmer market names are quite long. Can you make them shorter by using the
+forcats::fct_recode function? Create a plot that demonstrates the number of farmers markets per
+location type. The locations should be ordered in descending order where the top of the graph will
+have the one with the highest number of markets
+
+```{r}  
+q5 <- fmarket %>%
+  group_by(Location) %>%
+  summarise(count = n()) %>%
+  as_tibble() %>%
+  mutate(New_Location_Name = forcats::fct_recode(Location,
+                                    "Closed-off public street" = "Clo.Pub_St" ,  
+                                    "Co-located with wholesale market facility" = "Co.loc_w_wls_market_fac",    
+                                    "Educational institution" = "Ed. Institute",   
+                                    "Faith-based institution (e.g., church, mosque, synagogue, temple)" = "Faith_B_inst",
+                                    "Federal/State government building grounds" = "Govt_build_grond",
+                                    "Healthcare Institution"  = "Hc_Instit.",
+                                    "Local government building grounds" = "Loc_gov_Bld_gro" , 
+                                    "On a farm from: a barn, a greenhouse, a tent, a stand, etc"  = "Onff",  
+                                    "Other" = "Other" ,  
+                                    "Private business parking lot"  = "Pbpl"))
+
+
+ggplot( data = q5, mapping = aes(y = reorder(New_Location_Name, count) , x = count) )+
+  geom_point()
+```
+
+
+
+## Qustion 5 (20 points)
+
+Write code to sanity check the kyfprojects data. For example, does Program Abbreviation
+always match Program Name for all the rows?
+
+```{r}  
+datastat <- as_vector(kyfp$State)
+
+stat <- as_vector(state.abb)
+
+stat1 <- str_c(stat, collapse = "|")
+
+str_detect(datastat,stat1)  
+#State names doesnot match with the state abbrivations  
+#as there are few false in the results so,  
+# need to recorrect them.
+```
+
+```{r}
+str_detect(kyfp$Zip, "\\d{5}")  
+#some zipcodes are missing.  
+```
+
+```{r}
+sum(is.na(kyfp$`Project Title`))  
+#90 programs with out a title.
+```
+```{r}
+sum(is.na(kyfp$`Funding Amount ($)`))  
+#for 1 program there are no details about funding amount.
+```
+
+

@@ -1,0 +1,231 @@
+---
+title: "Assignment 5 "
+author: "Gandhar Kothari"
+date: "`r Sys.Date()`"
+output: pdf_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```  
+  
+ 
+```{r}
+setwd("C:/Gandhar/CSR/Assignment 5")
+
+library(tidyverse)
+library(readxl)
+library(stringr)
+library(lubridate)
+
+
+fmarket <- read_csv("farmers_market.csv")
+```
+  
+** 1. (10 points) Add a new column `Season1Days` that contains the number of days a market is opened per week (for the dates it is open). **
+
+```{r}  
+weekdays <- c( "Mon" , "Tue", "Wed","Thu", "Fri", "Sat", "Sun")  
+
+pattern <- str_c(weekdays , collapse = "|")  
+# Using the vector and collapse function, created a regular expression  
+# to count the number of patterns (days) matching in the dataset.  
+# Using count function. 
+
+fmarket <-  fmarket %>%
+  mutate(season1days = str_count(Season1Time , pattern ))  
+#Mutate to add new column season1days to dataset representing  
+#the number of days the market is open a week.
+head(fmarket, 5)
+```  
+**2. (10 points) Add a new column `WeekendOpen` indicating whether a market opens during weekeneds.**  
+```{r}  
+fmarket <- fmarket %>%
+  mutate(WeekendOpen = str_count(Season1Time , "Sat|Sun"))  
+# Here used count function to count how many times  
+# Sat, Sun patterns repeat in dataset to count    
+# Number of days a market is open during weeekends.  
+# Here the result int the new column WeekendOpen will be 0,1,2 
+# 0 - Market not open during weekend
+# 1 - The market opens only one day during weekends.
+# 2 - The market opens both the days during weekends.
+head(fmarket,10)
+```  
+**3. (20 points) Find out which markets close before 6PM, and which open only for fewer than 4 hours a day. For simplicity, consider only `Season1Time`. For markets with different open hours across a week, use the average length of open hours for the days they actually open.**  
+```{r}  
+q3v1 <- fmarket %>%
+  select(MarketName,Season1Time)  
+#To filter the markets that operate few hours than 4 hours  
+# a day and close before 6PM, Selected only Market name and  
+# Season1Time column to separate opening  
+#and closing times from Season1Time column.
+
+string2 <-str_replace_all(q3v1$Season1Time,"^[A-Za-z:]+[ ]|^[A-Za-z]+[:]","")  
+#first Step of seperating the times. Here we, replaced days  
+# such as (Wed, Thurs) etc., with "" so that it becomes easy to  
+# extract the opening time with a regular expression.
+ string2.1 <- str_replace(string2,";","")  
+ #2. Cleaned the tail (; that is seperating dates) so that it   
+ # becomes easy to extract the closing time with a regular expression.
+
+string3 <- str_extract(string2,"^[0-9]+[:][0-9]+[ ][A-Za-z]+")  
+# extracting opening time using the regular expression (^).
+
+q3v2 <- parse_time (string3, "%I:%M %p")  
+# As the above vector string3 contains character type data        
+# used Parse_time function to convert the character type data to  
+# time format.;
+
+string4 <- str_extract(string2.1 , "[0-9]+[:][0-9]+[ ][A-Za-z]+$")  
+# Extracting the closing time using regular expression($).  
+
+q3v3 <- parse_time ( string4, "%I:%M %p")  
+# Used parse_time function to convert the character type of data to  
+# time forma.t
+
+pt <- parse_time("6:00 PM")  
+# Defined a new variable to z containing the time 6 PM. 
+
+q3v1$Season1Time <- string2.1  
+# Assigned the vector which contains only opening and  
+# Closing times to previously selected dataframe.
+
+prac2<-mutate(q3v1 , begin = q3v2, End = q3v3)  
+# Prac2 is a new dataframe containing the opening and closing times.
+# begin represents the begin time of market and  
+# End represents the ending time of market.
+
+r1 <- filter(prac2, abs(parse_time(begin)-parse_time(End)) < 14400 , parse_time(End) < pt )  
+# Here 144000 represents 4 hrs. as time difference is measured in seconds.
+# pt is a variable representing 6 PM.
+head(r1,5)
+```  
+**4. (40 Points) The seasons are not standardized and would make analysis difficult. Create four new columns for four seasons (Spring, Summer, Fall, Winter), indicating whether a market is available in that season. Also create two additional column `HalfYear` and `YearRound` to identify those who open across seasons. Define "half year" and "year round" on your own terms, but explain them before you write the code.**  
+```{r}  
+fmarket$Season1Date <- str_replace_all(fmarket$Season1Date, c("January"="01/01/2017","February"="02/01/2017",
+                                                                                                             "March"="03/01/2017","April"="04/01/2017",
+                                                                                                             "May"="05/01/2017","July"="07/01/2017",
+                                                                                                             "June"="06/01/2017","August"="08/01/2017",
+                                                                                                             "September"="09/01/2017","October"="10/01/2017",
+                                                                                                             "November"="11/01/2017","December"="12/01/2017"))  
+# To replace data that contain only month names with regular  
+# dates.
+
+season1begin <- str_extract(fmarket$Season1Date,"^[0-9]+[/][0-9]+[/][0-9]+")  
+# Extracted the opening dates of markets and stored it in season1begin variable  
+# Using a regular expression.
+
+season1end <- str_extract(fmarket$Season1Date,"[0-9]+[/][0-9]+[/][0-9]+$")  
+# Extracted the closing date of market.
+ 
+v1 <- str_replace(season1begin,"[0-9]+$","2017")  
+# Consolidating all the years to same year to make analysis easy.
+
+v2 <- str_replace(season1end,"[0-9]+$","2017")
+
+v1 <- parse_date(v1, "%m/%d/%Y")  
+# to convert the character type of data to date type of data,  
+# used the parse_date function.
+
+v2 <- parse_date(v2 , "%m/%d/%Y")
+
+
+# create date ranges for the four seasons
+winter_start <- as.Date("2017-12-01") # Defining winter start date
+spring_start <- as.Date("2017-03-01") #Defining spring start date.
+summer_start <- as.Date("2017-06-01") #Defining summer start date./
+fall_start <- as.Date("2017-09-01") # Defining fall start date.
+winter <- interval(winter_start, spring_start + years(1))  
+# representing the interval of winter.
+spring <- interval(spring_start,summer_start)
+summer <- interval(summer_start,fall_start)
+fall <- interval(fall_start,winter_start)
+
+Halfyear <- interval(v1, v1+months(6) )  
+# Half year are the stores that operate for 6 months 
+
+yearRound <- interval( winter_start, fall_start+months(3) )  
+# Year round represent the stores that operate year round.  
+# Here added 3 months to fall as the duration between winter and  
+# fall is 9 months, adding 3 months gives total of an year.
+
+winter
+spring
+summer
+fall
+
+fmarket<- fmarket%>%
+  mutate(
+    
+    Season1BeginDate = v1,
+    Season1EndDate = v2 ,
+    # consolidate all dates to be of the same year
+    # and take care of end-of-year cases
+    Season1EndDate = if_else(Season1EndDate < Season1BeginDate,
+                             Season1EndDate + years(1),
+                             Season1EndDate),
+    Season1DateRange = interval(Season1BeginDate, Season1EndDate),
+    # The column will now contain
+    # TRUE/FALSE values returned by `int_overlaps`
+    Winter = int_overlaps(Season1DateRange, winter),
+    spring = int_overlaps(Season1DateRange,spring),
+    summer = int_overlaps(Season1DateRange,summer),
+    fall = int_overlaps(Season1DateRange, fall),
+    yearRound = int_overlaps(Season1DateRange,yearRound),
+    
+    Halfyear = int_overlaps(Season1DateRange,Halfyear)
+  )
+
+head(fmarket,5)
+
+
+```
+**5.(20 points) explore the new variables you just created. Aggregate them at different geographic levels, or some other categorical variable. What can you discover?**  
+```{r}  
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State,fill = Winter))+
+  coord_flip()  
+# Here we can see that the proportion of markets that open in  
+# the winter are less when compared with the markets that are open  
+# this can be because of snow fall or low yield of crops because of  
+# low temperatures except california and florida because of their  
+# tropical climate.
+
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State, fill = spring))+
+  coord_flip()  
+# Here we can see that the there are more number of markets open  
+#compared with winter
+
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State, fill = fmarket$summer))+
+  coord_flip()  
+# Almost all the markets are open in summer. This can be attributed to  
+# High temperatures and there may be high yield of crops from the previous  
+# Spring season.
+
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State, fill = fmarket$fall))+
+  coord_flip()  
+#  Almost all the markets are open in fall. This may be because of high yield   
+# of crops in the previous Summer season.
+
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State, fill = fmarket$yearRound))+
+  coord_flip()  
+# Here we can see that the number of markets the open year round are less  
+# compared to closed ones. This can be because of winter as we can see that  
+# more number of markets are closed during winters.
+
+ggplot(data = fmarket)+
+  geom_bar(mapping = aes(x = State, fill = fmarket$Halfyear))+
+  coord_flip()  
+# Here we can see that in almost all the states, more number of markets  
+# are open halfyear as more number of markets are open during  
+# summer, spring and fall  
+
+# On an overall observation we can say that almost all the markets are open  
+# halfyear . but only few are open year round. and this trend is predominantly  
+# found in the states where temperature drop is predominantly high.
+```
